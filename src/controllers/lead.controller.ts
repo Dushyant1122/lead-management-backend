@@ -1,8 +1,10 @@
 import { Request, Response, NextFunction } from "express";
 import xlsx from "xlsx";
 import ApiError from "../utils/apiError";
-import { Lead } from "../models/lead.model"; // Create this model later
+import { Lead } from "../models/lead.model";
+import * as fs from "fs";
 
+//Upload Leads
 export async function uploadLeads(
   req: Request,
   res: Response,
@@ -11,20 +13,44 @@ export async function uploadLeads(
   try {
     if (!req.file) throw new ApiError(400, "No file uploaded");
 
-    const workbook = xlsx.readFile(req.file.path);
+    const filePath = req.file.path;
+    const workbook = xlsx.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const rows = xlsx.utils.sheet_to_json(sheet); // ✅ Converts to array of objects
+    const rows = xlsx.utils.sheet_to_json(sheet);
 
     const managerId = req.user?._id;
+    if (!managerId) throw new ApiError(401, "Unauthorized");
 
-    const leadsToInsert = rows.map((row: any) => ({
-      name: row["Name"], // ✅ map Excel "Name"
-      phone: row["Phone"], // ✅ map Excel "Phone"
-      uploadedBy: managerId,
-      status: "Not Called",
-    }));
+    const leadsToInsert = rows
+      .map((row: any) => {
+        const name = row["Name"]?.toString().trim();
+        const phone = row["Phone"]?.toString().trim();
+        if (!name || !phone) return null;
+
+        return {
+          name,
+          phone,
+          uploadedBy: managerId,
+          status: "Not Called",
+          firstCallDate: null,
+          nextFollowupDate: null,
+          notes: "",
+          assignedTo: undefined,
+          assignedAt: null,
+          tvrForm: undefined,
+        };
+      })
+      .filter(Boolean);
+
+    if (leadsToInsert.length === 0) {
+      throw new ApiError(400, "No valid leads found in the uploaded file.");
+    }
 
     const inserted = await Lead.insertMany(leadsToInsert);
+
+    fs.unlink(filePath, (err) => {
+      if (err) console.error("Error deleting uploaded file:", err);
+    });
 
     res.status(200).json({
       message: "Leads uploaded successfully",
@@ -34,8 +60,8 @@ export async function uploadLeads(
     next(error);
   }
 }
-  
 
+//Assign leads
 export const assignLeadsToTelecaller = async (
   req: Request,
   res: Response,
@@ -63,7 +89,12 @@ export const assignLeadsToTelecaller = async (
 
     const result = await Lead.updateMany(
       { _id: { $in: leadIds } },
-      { assignedTo: telecallerId }
+      {
+        $set: {
+          assignedTo: telecallerId,
+          assignedAt: new Date(),
+        },
+      }
     );
 
     res.status(200).json({
@@ -75,6 +106,7 @@ export const assignLeadsToTelecaller = async (
   }
 };
 
+//Get Telecaller Leads
 export const getMyLeads = async (
   req: Request,
   res: Response,
@@ -83,7 +115,10 @@ export const getMyLeads = async (
   try {
     const telecallerId = req.user._id;
 
-    const leads = await Lead.find({ assignedTo: telecallerId });
+    const leads = await Lead.find({ assignedTo: telecallerId })
+      .sort({ assignedAt: -1 }) // newest assigned first
+      .populate("uploadedBy", "firstName lastName userName") // show who uploaded
+      .lean(); // return plain JS objects instead of Mongoose docs
 
     res.status(200).json({
       count: leads.length,
@@ -94,7 +129,7 @@ export const getMyLeads = async (
   }
 };
 
-
+//Get Total Leads
 export const getManagerLeads = async (
   req: Request,
   res: Response,
@@ -104,15 +139,23 @@ export const getManagerLeads = async (
     const managerId = req.user._id;
     const { type } = req.query;
 
-    let filter: any = { uploadedBy: managerId };
+    const filter: any = { uploadedBy: managerId };
 
     if (type === "assigned") {
       filter.assignedTo = { $exists: true };
     } else if (type === "unassigned") {
       filter.assignedTo = { $exists: false };
+    } else if (type && type !== "all") {
+      throw new ApiError(
+        400,
+        "Invalid type. Use 'assigned', 'unassigned' or omit for all."
+      );
     }
 
-    const leads = await Lead.find(filter);
+    const leads = await Lead.find(filter)
+      .sort({ createdAt: -1 })
+      .populate("assignedTo", "firstName lastName userName role")
+      .lean();
 
     res.status(200).json({
       type: type || "all",

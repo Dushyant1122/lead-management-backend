@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import mongoose from "mongoose";
-import { IUser, User } from "../models/user.model";
+import { User } from "../models/user.model";
 import ApiError from "../utils/apiError";
 import ApiResponse from "../utils/apiResponse";
 import { sendMail } from "../utils/sendMail";
@@ -458,6 +458,45 @@ async function logoutUser(req: Request, res: Response, next: NextFunction) {
   }
 }
 
+// DONE
+async function getMyBackends(req: Request, res: Response, next: NextFunction) {
+  try {
+    const currentUser = req.user;
+
+    if (!currentUser) {
+      throw new ApiError(401, "Unauthorized");
+    }
+
+    if (currentUser.role !== "TELECALLER") {
+      throw new ApiError(
+        403,
+        "Only Telecallers are allowed to access this resource"
+      );
+    }
+
+    const managerId = currentUser.manager;
+
+    if (!managerId) {
+      throw new ApiError(400, "No manager assigned to this Telecaller");
+    }
+
+    const backends = await User.find({
+      role: "BACKEND",
+      manager: managerId,
+    })
+      .select("firstName lastName userName phone role")
+      .lean();
+
+    return res
+      .status(200)
+      .json(
+        new ApiResponse(200, { backends }, "Backends fetched successfully")
+      );
+  } catch (error) {
+    next(error);
+  }
+}
+
 export {
   createUser,
   updateUserById,
@@ -466,4 +505,5 @@ export {
   sendOtp,
   verifyOtp,
   logoutUser,
+  getMyBackends,
 };

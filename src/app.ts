@@ -6,6 +6,7 @@ import errorHandler from "./middlewares/error.middlewares";
 import ApiError from "./utils/apiError";
 import ApiResponse from "./utils/apiResponse";
 import leadRouter from "./routes/lead.routes";
+import tvrRouter from "./routes/tvr.routes";
 
 const app = express();
 
@@ -32,6 +33,7 @@ function startApp() {
 
   app.use("/api/v1/users", userRouter());
   app.use("/api/v1/leads", leadRouter());
+  app.use("/api/v1/tvr", tvrRouter());
 
   // Handle any route which is not defined
   app.use((req, res) => {

@@ -55,7 +55,7 @@ const userSchema = new Schema<IUser>(
 
     manager: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "users",
+      ref: "User",
       required: function (this: IUser) {
         return this.role === "TELECALLER" || this.role === "BACKEND";
       },
