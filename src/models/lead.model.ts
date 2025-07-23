@@ -5,14 +5,24 @@ export interface ILead extends Document {
   phone: string;
   uploadedBy: mongoose.Types.ObjectId;
   assignedTo?: mongoose.Types.ObjectId;
-  status: "Not Called" | "In Progress" | "Positive" | "Negative";
+  status:
+    | "Not Called"
+    | "Calling Attempted"
+    | "In Progress"
+    | "Follow-up Scheduled"
+    | "Positive"
+    | "Negative"
+    | "Converted"
+    | "Junk";
   firstCallDate?: Date;
   nextFollowupDate?: Date;
   notes?: string;
-  tvrForm?: mongoose.Types.ObjectId; 
+  tvrForm?: mongoose.Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
-  assignedAt: Date;
+  assignedAt?: Date;
+  callCount: number;
+  lastContactedAt: Date;
 }
 
 const leadSchema = new Schema<ILead>(
@@ -25,6 +35,7 @@ const leadSchema = new Schema<ILead>(
       type: String,
       required: true,
     },
+
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -37,9 +48,19 @@ const leadSchema = new Schema<ILead>(
     assignedAt: {
       type: Date,
     },
+
     status: {
       type: String,
-      enum: ["Not Called", "In Progress", "Positive", "Negative"],
+      enum: [
+        "Not Called",
+        "Calling Attempted",
+        "In Progress",
+        "Follow-up Scheduled",
+        "Positive",
+        "Negative",
+        "Converted",
+        "Junk",
+      ],
       default: "Not Called",
     },
     firstCallDate: {
@@ -54,6 +75,14 @@ const leadSchema = new Schema<ILead>(
     tvrForm: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "TVR",
+    },
+
+    callCount: {
+      type: Number,
+      default: 0, // Track number of call attempts
+    },
+    lastContactedAt: {
+      type: Date, // When last contact happened
     },
   },
   {

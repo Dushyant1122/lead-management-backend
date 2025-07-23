@@ -459,38 +459,71 @@ async function logoutUser(req: Request, res: Response, next: NextFunction) {
 }
 
 // DONE
-async function getMyBackends(req: Request, res: Response, next: NextFunction) {
+async function getMyUsers(req: Request, res: Response, next: NextFunction) {
   try {
     const currentUser = req.user;
-
     if (!currentUser) {
       throw new ApiError(401, "Unauthorized");
     }
 
-    if (currentUser.role !== "TELECALLER") {
-      throw new ApiError(
-        403,
-        "Only Telecallers are allowed to access this resource"
-      );
+    // Extract query role and normalize it properly
+    const queryRoleRaw = req.query.role;
+    const queryRole =
+      typeof queryRoleRaw === "string" ? queryRoleRaw.toUpperCase() : "";
+
+    // Determine Manager ID
+    let managerId: mongoose.Types.ObjectId | undefined;
+
+    if (currentUser.role === "MANAGER") {
+      if (!mongoose.Types.ObjectId.isValid(currentUser._id)) {
+        throw new ApiError(400, "Invalid manager ID format");
+      }
+      managerId = new mongoose.Types.ObjectId(String(currentUser._id));
+    } else if (currentUser.role === "TELECALLER") {
+      if (
+        !currentUser.manager ||
+        !mongoose.Types.ObjectId.isValid(currentUser.manager)
+      ) {
+        throw new ApiError(400, "No valid manager assigned to this Telecaller");
+      }
+      managerId = new mongoose.Types.ObjectId(String(currentUser.manager));
+    } else {
+      throw new ApiError(403, "Access denied for this role");
     }
 
-    const managerId = currentUser.manager;
-
-    if (!managerId) {
-      throw new ApiError(400, "No manager assigned to this Telecaller");
+    if (!mongoose.Types.ObjectId.isValid(managerId)) {
+      throw new ApiError(400, "Invalid manager ID format");
     }
 
-    const backends = await User.find({
-      role: "BACKEND",
+    // Create filter based on query
+    const filter: Record<string, any> = {
       manager: managerId,
-    })
+    };
+
+    if (queryRole) {
+      filter.role = queryRole;
+    }
+
+    const users = await User.find(filter)
       .select("firstName lastName userName phone role")
       .lean();
+
+    const formattedUsers = users.map((user) => ({
+      _id: user._id,
+      fullName: `${user.firstName} ${user.lastName}`,
+      userName: user.userName,
+      phone: user.phone,
+      role: user.role,
+    }));
 
     return res
       .status(200)
       .json(
-        new ApiResponse(200, { backends }, "Backends fetched successfully")
+        new ApiResponse(
+          200,
+          { users: formattedUsers },
+          "Users fetched successfully"
+        )
       );
   } catch (error) {
     next(error);
@@ -505,5 +538,5 @@ export {
   sendOtp,
   verifyOtp,
   logoutUser,
-  getMyBackends,
+  getMyUsers,
 };

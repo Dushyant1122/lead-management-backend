@@ -7,7 +7,7 @@ import {
   sendOtp,
   verifyOtp,
   logoutUser,
-  getMyBackends,
+  getMyUsers,
 } from "../controllers/user.controller";
 import { verifyAccessToken } from "../middlewares/auth.middlewares";
 
@@ -24,8 +24,8 @@ function userRouter() {
   router.route("/:userId").get(getUserById).patch(updateUserById);
   // .delete();
   router.route("/logout").post(logoutUser);
-  router.route("/get-backend").post(getMyBackends);
 
+  
   return router;
 }
 

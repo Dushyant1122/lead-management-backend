@@ -116,9 +116,9 @@ export const getMyLeads = async (
     const telecallerId = req.user._id;
 
     const leads = await Lead.find({ assignedTo: telecallerId })
-      .sort({ assignedAt: -1 }) // newest assigned first
-      .populate("uploadedBy", "firstName lastName userName") // show who uploaded
-      .lean(); // return plain JS objects instead of Mongoose docs
+      .sort({ assignedAt: -1 }) 
+      .populate("uploadedBy", "firstName lastName userName") 
+      .lean(); 
 
     res.status(200).json({
       count: leads.length,
@@ -166,3 +166,244 @@ export const getManagerLeads = async (
     next(error);
   }
 };
+
+export const updateLeadStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { leadId } = req.params;
+    const { status, firstCallDate, nextFollowupDate, notes } = req.body;
+
+    const lead = await Lead.findById(leadId);
+    if (!lead) {
+      throw new ApiError(404, "Lead not found");
+    }
+
+    // Update fields if provided
+    if (status) lead.status = status;
+    if (firstCallDate) lead.firstCallDate = new Date(firstCallDate);
+    if (nextFollowupDate) lead.nextFollowupDate = new Date(nextFollowupDate);
+    if (notes !== undefined) lead.notes = notes;
+
+    await lead.save();
+
+    res.status(200).json({
+      message: "Lead updated successfully",
+      lead,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getLeadById = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+
+    const lead = await Lead.findById(id)
+      .populate("uploadedBy", "firstName lastName userName")
+      .populate("assignedTo", "firstName lastName userName");
+
+    if (!lead) {
+      throw new ApiError(404, "Lead not found");
+    }
+
+    res.status(200).json({
+      message: "Lead fetched successfully",
+      lead,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteLead = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const leadId = req.params.id;
+    const managerId = req.user._id;
+
+    const lead = await Lead.findOneAndDelete({
+      _id: leadId,
+      uploadedBy: managerId,
+    });
+
+    if (!lead) {
+      throw new ApiError(404, "Lead not found or unauthorized");
+    }
+
+    res.status(200).json({
+      message: "Lead deleted successfully",
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const exportLeads = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const managerId = req.user._id;
+    const { type } = req.query;
+
+    const filter: any = { uploadedBy: managerId };
+
+    if (type === "assigned") filter.assignedTo = { $exists: true };
+    if (type === "unassigned") filter.assignedTo = { $exists: false };
+
+    const leads = await Lead.find(filter).populate("assignedTo uploadedBy");
+
+    const data = leads.map((lead) => ({
+      Name: lead.name,
+      Phone: lead.phone,
+      Status: lead.status,
+      AssignedTo: lead.assignedTo
+        ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}`
+        : "Unassigned",
+      Notes: lead.notes || "",
+      UploadedBy: `${lead.uploadedBy.firstName} ${lead.uploadedBy.lastName}`,
+      FirstCallDate: lead.firstCallDate || "",
+      NextFollowupDate: lead.nextFollowupDate || "",
+    }));
+
+    const worksheet = xlsx.utils.json_to_sheet(data);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, "Leads");
+
+    const buffer = xlsx.write(workbook, { type: "buffer", bookType: "xlsx" });
+
+    res.setHeader("Content-Disposition", `attachment; filename=leads.xlsx`);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+
+    res.status(200).send(buffer);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getLeadsByStatus = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const managerId = req.user._id;
+    const { value } = req.query;
+
+    if (!value) throw new ApiError(400, "Status value is required");
+
+    const leads = await Lead.find({
+      uploadedBy: managerId,
+      status: value,
+    });
+
+    res.status(200).json({
+      message: `Leads with status "${value}" fetched successfully.`,
+      count: leads.length,
+      leads,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getUpcomingFollowups = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const telecallerId = req.user._id;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const leads = await Lead.find({
+      assignedTo: telecallerId,
+      nextFollowupDate: { $gte: today },
+    }).sort({ nextFollowupDate: 1 });
+
+    res.status(200).json({
+      message: "Upcoming follow-ups fetched",
+      count: leads.length,
+      leads,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const reassignLead = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id } = req.params;
+    const { newTelecallerId } = req.body;
+
+    if (!newTelecallerId) throw new ApiError(400, "New telecaller ID required");
+
+    const lead = await Lead.findByIdAndUpdate(
+      id,
+      {
+        assignedTo: newTelecallerId,
+        assignedAt: new Date(),
+      },
+      { new: true }
+    );
+
+    if (!lead) throw new ApiError(404, "Lead not found");
+
+    res.status(200).json({
+      message: "Lead reassigned successfully",
+      lead,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteLeadsBulk = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { ids } = req.body;
+
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new ApiError(400, "IDs array is required");
+    }
+
+    const managerId = req.user._id;
+
+    const result = await Lead.deleteMany({
+      _id: { $in: ids },
+      uploadedBy: managerId,
+    });
+
+    res.status(200).json({
+      message: "Leads deleted successfully",
+      deletedCount: result.deletedCount,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+

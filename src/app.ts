@@ -12,6 +12,7 @@ const app = express();
 
 function startApp() {
   // CORS settings
+
   app.use(
     cors({
       origin: process.env.CORS_ORIGIN,
