@@ -6,7 +6,8 @@
   "scripts": {
     "start": "node ./dist/index.ts",
     "dev": "ts-node-dev --respawn --transpile-only ./src/index.ts",
-    "tsc": "tsc --watch"
+    "tsc": "tsc --watch",
+    "build": "tsc"
   },
   "author": "",
   "license": "MIT",
