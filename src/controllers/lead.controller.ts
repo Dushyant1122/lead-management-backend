@@ -69,7 +69,7 @@ export const assignLeadsToTelecaller = async (
 ) => {
   try {
     const { telecallerId, count } = req.body;
-    const managerId = req.user._id;
+    const managerId = req.user?._id;
 
     if (!telecallerId || !count) {
       throw new ApiError(400, "telecallerId and count are required");
@@ -113,7 +113,7 @@ export const getMyLeads = async (
   next: NextFunction
 ) => {
   try {
-    const telecallerId = req.user._id;
+    const telecallerId = req.user?._id;
 
     const leads = await Lead.find({ assignedTo: telecallerId })
       .sort({ assignedAt: -1 }) 
@@ -136,7 +136,7 @@ export const getManagerLeads = async (
   next: NextFunction
 ) => {
   try {
-    const managerId = req.user._id;
+    const managerId = req.user?._id;
     const { type } = req.query;
 
     const filter: any = { uploadedBy: managerId };
@@ -230,7 +230,7 @@ export const deleteLead = async (
 ) => {
   try {
     const leadId = req.params.id;
-    const managerId = req.user._id;
+    const managerId = req.user?._id;
 
     const lead = await Lead.findOneAndDelete({
       _id: leadId,
@@ -255,7 +255,7 @@ export const exportLeads = async (
   next: NextFunction
 ) => {
   try {
-    const managerId = req.user._id;
+    const managerId = req.user?._id;
     const { type } = req.query;
 
     const filter: any = { uploadedBy: managerId };
@@ -263,21 +263,37 @@ export const exportLeads = async (
     if (type === "assigned") filter.assignedTo = { $exists: true };
     if (type === "unassigned") filter.assignedTo = { $exists: false };
 
-    const leads = await Lead.find(filter).populate("assignedTo uploadedBy");
+    // const leads = await Lead.find(filter).populate("assignedTo uploadedBy");
+    const leads = await Lead.find()
+      .populate("assignedTo", "firstName lastName") 
+      .populate("uploadedBy", "firstName lastName");
 
-    const data = leads.map((lead) => ({
-      Name: lead.name,
-      Phone: lead.phone,
-      Status: lead.status,
-      AssignedTo: lead.assignedTo
-        ? `${lead.assignedTo.firstName} ${lead.assignedTo.lastName}`
-        : "Unassigned",
-      Notes: lead.notes || "",
-      UploadedBy: `${lead.uploadedBy.firstName} ${lead.uploadedBy.lastName}`,
-      FirstCallDate: lead.firstCallDate || "",
-      NextFollowupDate: lead.nextFollowupDate || "",
-    }));
 
+      const data = leads.map((lead) => ({
+        Name: lead.name,
+        Phone: lead.phone,
+        Status: lead.status,
+        AssignedTo:
+          lead.assignedTo &&
+          typeof lead.assignedTo === "object" &&
+          "firstName" in lead.assignedTo
+            ? `${(lead.assignedTo as any).firstName} ${
+                (lead.assignedTo as any).lastName
+              }`
+            : "Unassigned",
+        Notes: lead.notes || "",
+        UploadedBy:
+          lead.uploadedBy &&
+          typeof lead.uploadedBy === "object" &&
+          "firstName" in lead.uploadedBy
+            ? `${(lead.uploadedBy as any).firstName} ${
+                (lead.uploadedBy as any).lastName
+              }`
+            : "Unknown",
+        FirstCallDate: lead.firstCallDate || "",
+        NextFollowupDate: lead.nextFollowupDate || "",
+      }));
+    
     const worksheet = xlsx.utils.json_to_sheet(data);
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, "Leads");
@@ -302,7 +318,7 @@ export const getLeadsByStatus = async (
   next: NextFunction
 ) => {
   try {
-    const managerId = req.user._id;
+    const managerId = req.user?._id;
     const { value } = req.query;
 
     if (!value) throw new ApiError(400, "Status value is required");
@@ -328,7 +344,7 @@ export const getUpcomingFollowups = async (
   next: NextFunction
 ) => {
   try {
-    const telecallerId = req.user._id;
+    const telecallerId = req.user?._id;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -391,7 +407,7 @@ export const deleteLeadsBulk = async (
       throw new ApiError(400, "IDs array is required");
     }
 
-    const managerId = req.user._id;
+    const managerId = req.user?._id;
 
     const result = await Lead.deleteMany({
       _id: { $in: ids },

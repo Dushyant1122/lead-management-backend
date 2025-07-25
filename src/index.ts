@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 config({ path: "./.env" });
 import connectDatabase from "./db";
-import app, { startApp } from "./app.ts";
+import app, { startApp } from "./app";
 
 const PORT = Number(process.env.PORT) || 4000;
 

@@ -1,10 +1,10 @@
 import mongoose, { Schema, Document } from "mongoose";
-
+import { IUser } from "./user.model";
 export interface ILead extends Document {
   name: string;
   phone: string;
-  uploadedBy: mongoose.Types.ObjectId;
-  assignedTo?: mongoose.Types.ObjectId;
+  uploadedBy: IUser | mongoose.Types.ObjectId;
+  assignedTo: IUser | mongoose.Types.ObjectId;
   status:
     | "Not Called"
     | "Calling Attempted"

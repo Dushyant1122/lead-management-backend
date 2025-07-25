@@ -7,6 +7,7 @@ import {
 } from "../constants";
 
 export interface IUser extends Document {
+  _id: mongoose.Types.ObjectId | string;
   firstName: string;
   lastName: string;
   userName: string;

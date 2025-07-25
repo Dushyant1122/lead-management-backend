@@ -199,7 +199,7 @@ async function verifyOtp(req: Request, res: Response, next: NextFunction) {
     });
 
     // Sanitize full user data (remove sensitive fields)
-    const { password, otp: _, otpExpiry, ...safeUser } = user.toObject();
+    const {  otp: _, otpExpiry, ...safeUser } = user.toObject();
 
     return res.status(200).json(
       new ApiResponse(
@@ -407,10 +407,10 @@ async function updateUserById(req: Request, res: Response, next: NextFunction) {
     // Update fields
     for (const field of updatableFields) {
       if (req.body[field] !== undefined) {
-        userToUpdate[field] = req.body[field];
+        (userToUpdate as any)[field] = req.body[field];
       }
     }
-
+      
     await userToUpdate.save();
 
     // Only return safe fields
