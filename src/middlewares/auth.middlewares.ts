@@ -19,7 +19,7 @@ async function verifyAccessToken(
   next: NextFunction
 ) {
   try {
-    const accessToken = req.cookies.token;
+    const accessToken = req.cookies.token || req.headers.token;
 
     if (!accessToken) {
       throw new ApiError(401, "No Access Token Provided!");
