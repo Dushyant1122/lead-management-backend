@@ -180,18 +180,21 @@ async function verifyOtp(req: Request, res: Response, next: NextFunction) {
       throw new ApiError(403, "Invalid or expired OTP");
     }
 
-    // Clear OTP and login user
-    user.otp = undefined;
-    user.otpExpiry = undefined;
-    user.isVerified = true;
-    await user.save();
-
     const token = jwt.sign(
       { id: user._id, role: user.role },
       process.env.JWT_SECRET!,
       { expiresIn: "7d" }
     );
+    const expiryDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
 
+    // Clear OTP and login user
+    user.otp = undefined;
+    user.otpExpiry = undefined;
+    user.isVerified = true;
+    user.token = token;
+    user.tokenExpiry = expiryDate;
+
+    await user.save();
     res.cookie("token", token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -199,14 +202,20 @@ async function verifyOtp(req: Request, res: Response, next: NextFunction) {
     });
 
     // Sanitize full user data (remove sensitive fields)
-    const {  otp: _, otpExpiry, ...safeUser } = user.toObject();
+    const {
+      otp: _,
+      otpExpiry,
+      token: _t,
+      tokenExpiry,
+      ...safeUser
+    } = user.toObject();
 
     return res.status(200).json(
       new ApiResponse(
         200,
         {
           token,
-          user: safeUser, // full safe user object
+          user: safeUser,
         },
         "OTP verified and login successful"
       )
@@ -410,7 +419,7 @@ async function updateUserById(req: Request, res: Response, next: NextFunction) {
         (userToUpdate as any)[field] = req.body[field];
       }
     }
-      
+
     await userToUpdate.save();
 
     // Only return safe fields

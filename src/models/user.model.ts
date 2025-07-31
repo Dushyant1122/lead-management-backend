@@ -18,6 +18,7 @@ export interface IUser extends Document {
   role: UserRoleTypes;
   manager?: mongoose.Types.ObjectId;
   token?: string;
+  tokenExpiry: Date;
   isVerified: boolean;
   isActive: boolean;
   status: UserStatusTypes;
@@ -63,6 +64,7 @@ const userSchema = new Schema<IUser>(
     },
 
     token: { type: String },
+    tokenExpiry: { type: Date },
     isVerified: { type: Boolean, default: false },
     isActive: { type: Boolean, default: true },
 
