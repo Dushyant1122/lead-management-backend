@@ -11,7 +11,7 @@ import { verifyAccessToken } from "../middlewares/auth.middlewares";
 function tvrRouter() {
   const router = Router();
 
-  router.use(verifyAccessToken);
+  // router.use(verifyAccessToken);
 
   router.route("/").get(getAllTVRs);
   router.route("/lead/:leadId").post(createTVR);
