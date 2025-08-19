@@ -16,7 +16,7 @@ function userRouter() {
 
   router.route("/send-otp").post(sendOtp);
   router.route("/verify-otp").post(verifyOtp);
-  // router.use(verifyAccessToken);
+  router.use(verifyAccessToken);
 
   router.route("/").post(createUser);
 

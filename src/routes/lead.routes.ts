@@ -7,7 +7,6 @@ import { UserRoleValues } from "../constants";
 import upload from "../middlewares/multer.middleware";
 
 import {
-  // Manager
   uploadLeads,
   assignLeadsToTelecaller,
   getManagerLeads,
@@ -16,7 +15,7 @@ import {
   deleteLead,
   getLeadById,
   deleteLeadsBulk,
-  reassignLead, // Telecaller
+  reassignLead,
   getMyLeads,
   getUpcomingFollowups,
   updateLeadStatus,
@@ -24,107 +23,65 @@ import {
 
 function leadRouter() {
   const router = Router();
-  /** -------------------- MANAGER ROUTES -------------------- **/ 
-  
-  // ➤ Upload Excel file (Only Manager)
-  router.post(
-    "/upload",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    upload.single("file"),
-    uploadLeads
+
+  /** -------------------- MANAGER ROUTES -------------------- **/
+  const managerRouter = Router();
+  managerRouter.use(
+    verifyAccessToken,
+    authorizeRoles([UserRoleValues.MANAGER])
   );
 
-  // ➤ Bulk assign to telecallers
-  router.patch(
-    "/assign-bulk",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    assignLeadsToTelecaller
-  );
+  // Upload Excel file
+  managerRouter.post("/upload", upload.single("file"), uploadLeads);
 
-  // ➤ Reassign single lead to another telecaller
-  router.patch(
-    "/:id/reassign",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    reassignLead
-  );
+  // Bulk assign to telecallers
+  managerRouter.patch("/assign-bulk", assignLeadsToTelecaller);
 
-  // ➤ Get all manager leads (with optional filter ?type=assigned/unassigned)
-  router.get(
-    "/manager-leads",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    getManagerLeads
-  );
+  // Reassign single lead
+  managerRouter.patch("/:id/reassign", reassignLead);
 
-  // ➤ Get leads by status
-  router.get(
-    "/status",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    getLeadsByStatus
-  );
+  // Get all manager leads (with optional filter ?type=assigned/unassigned)
+  managerRouter.get("/manager-leads", getManagerLeads);
 
-  // ➤ Export leads as XLSX
-  router.get(
-    "/export",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    exportLeads
-  );
+  // Get leads by status
+  managerRouter.get("/status", getLeadsByStatus);
 
-  // ➤ Delete a single lead (uploaded by this manager)
-  router.delete(
-    "/:id",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    deleteLead
-  );
+  // Export leads
+  managerRouter.get("/export", exportLeads);
 
-  // ➤ Bulk delete leads (pass array of IDs)
-  router.post(
-    "/delete-bulk",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER]),
-    deleteLeadsBulk
-  );
+  // Delete single lead
+  managerRouter.delete("/:id", deleteLead);
 
-  router.get(
-    "/my-leads",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.TELECALLER]),
-    getMyLeads
-  );
+  // Bulk delete leads
+  managerRouter.post("/delete-bulk", deleteLeadsBulk);
 
-  // ➤ Get Single Lead Details (Manager or Telecaller)
+  // Manager + Telecaller both can view single lead details
   router.get(
     "/:id",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.MANAGER, UserRoleValues.TELECALLER]),
+    verifyAccessToken,
+    authorizeRoles([UserRoleValues.MANAGER, UserRoleValues.TELECALLER]),
     getLeadById
   );
 
-  /** -------------------- TELECALLER ROUTES -------------------- **/ 
-  // ➤ Telecaller: Get only my assigned leads
-
-
-  // ➤ Telecaller: Get upcoming followups
-  router.get(
-    "/followups/upcoming",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.TELECALLER]),
-    getUpcomingFollowups
+  /** -------------------- TELECALLER ROUTES -------------------- **/
+  const telecallerRouter = Router();
+  telecallerRouter.use(
+    verifyAccessToken,
+    authorizeRoles([UserRoleValues.TELECALLER])
   );
 
-  // ➤ Telecaller: Update status, call, notes, follow-ups
-  router.patch(
-    "/:leadId",
-    // verifyAccessToken,
-    // authorizeRoles([UserRoleValues.TELECALLER]),
-    updateLeadStatus
-  );
+  // Get only my leads
+  telecallerRouter.get("/my-leads", getMyLeads);
+
+  // Get upcoming followups
+  telecallerRouter.get("/followups/upcoming", getUpcomingFollowups);
+
+  // Update lead status, notes, follow-ups
+  telecallerRouter.patch("/:leadId", updateLeadStatus);
+
+  /** Mount sub-routers */
+  router.use("/manager", managerRouter);
+  router.use("/telecaller", telecallerRouter);
 
   return router;
 }

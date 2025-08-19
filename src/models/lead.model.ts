@@ -23,6 +23,7 @@ export interface ILead extends Document {
   assignedAt?: Date;
   callCount: number;
   lastContactedAt: Date;
+  sourceFileName: string;
 }
 
 const leadSchema = new Schema<ILead>(
@@ -35,7 +36,9 @@ const leadSchema = new Schema<ILead>(
       type: String,
       required: true,
     },
-
+    sourceFileName: {
+      type: String,
+    },
     uploadedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -79,10 +82,10 @@ const leadSchema = new Schema<ILead>(
 
     callCount: {
       type: Number,
-      default: 0, // Track number of call attempts
+      default: 0,
     },
     lastContactedAt: {
-      type: Date, // When last contact happened
+      type: Date,
     },
   },
   {

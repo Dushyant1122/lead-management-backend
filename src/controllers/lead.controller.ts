@@ -14,6 +14,7 @@ export async function uploadLeads(
     if (!req.file) throw new ApiError(400, "No file uploaded");
 
     const filePath = req.file.path;
+    const fileName = req.file.originalname;
     const workbook = xlsx.readFile(filePath);
     const sheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = xlsx.utils.sheet_to_json(sheet);
@@ -38,6 +39,7 @@ export async function uploadLeads(
           assignedTo: undefined,
           assignedAt: null,
           tvrForm: undefined,
+          sourceFileName: fileName,
         };
       })
       .filter(Boolean);
@@ -116,9 +118,9 @@ export const getMyLeads = async (
     const telecallerId = req.user?._id;
 
     const leads = await Lead.find({ assignedTo: telecallerId })
-      .sort({ assignedAt: -1 }) 
-      .populate("uploadedBy", "firstName lastName userName") 
-      .lean(); 
+      .sort({ assignedAt: -1 })
+      .populate("uploadedBy", "firstName lastName userName")
+      .lean();
 
     res.status(200).json({
       count: leads.length,
@@ -265,35 +267,34 @@ export const exportLeads = async (
 
     // const leads = await Lead.find(filter).populate("assignedTo uploadedBy");
     const leads = await Lead.find()
-      .populate("assignedTo", "firstName lastName") 
+      .populate("assignedTo", "firstName lastName")
       .populate("uploadedBy", "firstName lastName");
 
+    const data = leads.map((lead) => ({
+      Name: lead.name,
+      Phone: lead.phone,
+      Status: lead.status,
+      AssignedTo:
+        lead.assignedTo &&
+        typeof lead.assignedTo === "object" &&
+        "firstName" in lead.assignedTo
+          ? `${(lead.assignedTo as any).firstName} ${
+              (lead.assignedTo as any).lastName
+            }`
+          : "Unassigned",
+      Notes: lead.notes || "",
+      UploadedBy:
+        lead.uploadedBy &&
+        typeof lead.uploadedBy === "object" &&
+        "firstName" in lead.uploadedBy
+          ? `${(lead.uploadedBy as any).firstName} ${
+              (lead.uploadedBy as any).lastName
+            }`
+          : "Unknown",
+      FirstCallDate: lead.firstCallDate || "",
+      NextFollowupDate: lead.nextFollowupDate || "",
+    }));
 
-      const data = leads.map((lead) => ({
-        Name: lead.name,
-        Phone: lead.phone,
-        Status: lead.status,
-        AssignedTo:
-          lead.assignedTo &&
-          typeof lead.assignedTo === "object" &&
-          "firstName" in lead.assignedTo
-            ? `${(lead.assignedTo as any).firstName} ${
-                (lead.assignedTo as any).lastName
-              }`
-            : "Unassigned",
-        Notes: lead.notes || "",
-        UploadedBy:
-          lead.uploadedBy &&
-          typeof lead.uploadedBy === "object" &&
-          "firstName" in lead.uploadedBy
-            ? `${(lead.uploadedBy as any).firstName} ${
-                (lead.uploadedBy as any).lastName
-              }`
-            : "Unknown",
-        FirstCallDate: lead.firstCallDate || "",
-        NextFollowupDate: lead.nextFollowupDate || "",
-      }));
-    
     const worksheet = xlsx.utils.json_to_sheet(data);
     const workbook = xlsx.utils.book_new();
     xlsx.utils.book_append_sheet(workbook, worksheet, "Leads");
@@ -422,4 +423,3 @@ export const deleteLeadsBulk = async (
     next(error);
   }
 };
-
