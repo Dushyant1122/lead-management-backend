@@ -80,7 +80,7 @@ function leadRouter() {
   telecallerRouter.patch("/:leadId", updateLeadStatus);
 
   /** Mount sub-routers */
-  router.use("/manager", managerRouter);
+  router.use("/", managerRouter);
   router.use("/telecaller", telecallerRouter);
 
   return router;

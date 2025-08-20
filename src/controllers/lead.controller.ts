@@ -115,14 +115,30 @@ export const getMyLeads = async (
   next: NextFunction
 ) => {
   try {
-    const telecallerId = req.user?._id;
+    const role = req.user?.role;
+    const userId = req.user?._id;
 
-    const leads = await Lead.find({ assignedTo: telecallerId })
-      .sort({ assignedAt: -1 })
+    let query = {};
+
+    if (role === "ADMIN") {
+      // Admin -> all leads
+      query = {};
+    } else if (role === "MANAGER") {
+      // Manager -> leads uploaded by him
+      query = { uploadedBy: userId };
+    } else if (role === "TELECALLER") {
+      // Telecaller -> leads assigned to him
+      query = { assignedTo: userId };
+    }
+
+    const leads = await Lead.find(query)
+      .sort({ createdAt: -1 }) // sorted by creation time
       .populate("uploadedBy", "firstName lastName userName")
+      .populate("assignedTo", "firstName lastName userName")
       .lean();
 
     res.status(200).json({
+      success: true,
       count: leads.length,
       leads,
     });

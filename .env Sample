@@ -1,0 +1,27 @@
+#Application settings
+PORT=
+NODE_ENV=
+
+# Cross-Origin Resource Sharing (CORS) configuration
+CORS_ORIGIN=
+
+# Database credentials
+MONGODB_URI=
+# Tokens
+JWT_SECRET=
+ACCESS_TOKEN_EXPIRY=
+
+# ENV VARIABLES TO SEND MAILS
+SMTP_HOST=
+SMTP_PORT=
+SMTP_SERVICE=
+SMTP_EMAIL=
+SMTP_PASSWORD=
+
+# #cloudinary credentials
+# CLOUDINARY_NAME=trackonweb-ems
+# CLOUDINARY_API_KEY=464262957594537
+# CLOUDINARY_API_SECRET=wuYRndItM79UkDYe-9FJxeQZ09g
+
+# Multer settings
+MULTER_FILE_NAME_RANGE=1000000
