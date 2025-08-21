@@ -38,8 +38,8 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            cd /home/ubuntu/my-app
+            cd /lead_management_system/lead-management-backend
             git pull origin main
             npm install
             npm run build || true
-            pm2 restart myapp || pm2 start npm --name "myapp" -- run start
+            pm2 restart lead-management-backend || pm2 start npm --name "lead-management-backend" -- run start
