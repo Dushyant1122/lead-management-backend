@@ -116,7 +116,6 @@ async function createUser(req: Request, res: Response, next: NextFunction) {
 
 //DONE
 async function sendOtp(req: Request, res: Response, next: NextFunction) {
-  console.log("Hello World!")
   try {
     const { emailOrUsername }: { emailOrUsername: string } = req.body;
 
